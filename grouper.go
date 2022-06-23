@@ -31,6 +31,10 @@ func (gb *GroupBuffer[T, U]) Slice0(count int) []Group[T, U] {
 	return gb.data
 }
 
+func (gb *GroupBuffer[T, U]) Slice(skip, limit int) []Group[T, U] {
+	return gb.Slice0(skip + limit)[skip:]
+}
+
 type Group[T any, U constraints.Ordered] struct {
 	Group    U
 	Elements []T
@@ -55,22 +59,33 @@ func (gb *GroupBuffer[T, U]) insert(group U, data T) {
 	}
 
 	// add a new element
-	if len(gb.data) < gb.size {
-		new := gb.data[:insert+1]
-		new = append(new, Group[T, U]{
-			Group:    group,
-			Elements: []T{data},
-		})
-		gb.data = append(new, gb.data[insert:]...)
-		return
-	}
-
-	// replace and remove the last element
-	new := gb.data[:insert+1]
-	new = append(new, Group[T, U]{
+	gb.data = Insert(gb.data, Group[T, U]{
 		Group:    group,
 		Elements: []T{data},
-	})
-	gb.data = append(new, gb.data[insert:len(gb.data)]...)
+	}, insert, len(gb.data) < gb.size)
+
+}
+
+// Insert inserts element as index i
+func Insert[T any](slice []T, elem T, i int, grow bool) []T {
+	switch {
+	case i < 0:
+		panic("i < 0")
+	case i < len(slice):
+		s := slice
+		if grow {
+			s = append(s, elem)
+		}
+		copy(s[i+1:], s[i:])
+		s[i] = elem
+		return s
+	case i == len(slice):
+		if grow {
+			return append(slice, elem)
+		}
+		return slice
+	default:
+		panic("i > len(slice)")
+	}
 
 }
