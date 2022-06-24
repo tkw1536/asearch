@@ -1,4 +1,4 @@
-package fsearch
+package asearch
 
 import (
 	"golang.org/x/exp/slices"

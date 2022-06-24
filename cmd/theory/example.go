@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/tkw1536/fsearch"
+	"github.com/tkw1536/asearch"
 )
 
 func main() {
@@ -19,10 +19,10 @@ func main() {
 
 		all := j.Chan(context.Background())
 	*/
-	grouper := &fsearch.GroupBuffer[int, int]{
-		C:     makechanthing(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
-		Group: func(i int) int { return i % 10 },
-		Less:  func(a, b int) bool { return a < b },
+	grouper := &asearch.GroupBy[int, int]{
+		C:    makechanthing(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+		Kind: func(i int) int { return i % 10 },
+		Less: func(a, b int) bool { return a < b },
 	}
 
 	fmt.Println(grouper.Slice(1, 2))

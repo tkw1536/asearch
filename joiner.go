@@ -1,4 +1,4 @@
-package fsearch
+package asearch
 
 import (
 	"context"

@@ -1,23 +1,24 @@
-package fsearch
+package asearch
 
 import (
 	"sync"
-
-	"golang.org/x/exp/constraints"
 )
 
-type GroupBuffer[T any, U constraints.Ordered] struct {
-	m sync.Mutex
+// GroupBy implements grouping a stream of individuals by their groups
+// and returning an ordered slice
+type GroupBy[I any, K any] struct {
+	C    <-chan I             // C is a channel that returns individuals
+	Kind func(individual I) K // Kind returns the kind of an individual
 
-	C     chan T            // C is the channel where initial results are delivered to
-	Group func(t T) U       // Group returns the group of U
-	Less  func(a, b U) bool // Less is the order of groups
+	Less  func(a, b K) bool // Less implements an ordering on kinds
+	Equal func(a, b K) bool // Equal implements equality on K. When nil, assumed to be Less(a, b) == Less(b, a).
 
-	data []Group[T, U]
+	m    sync.Mutex
+	data []Group[I, K]
 	size int
 }
 
-func (gb *GroupBuffer[T, U]) Slice0(count int) []Group[T, U] {
+func (gb *GroupBy[I, U]) Slice0(count int) []Group[I, U] {
 	gb.m.Lock()
 	defer gb.m.Unlock()
 
@@ -25,25 +26,31 @@ func (gb *GroupBuffer[T, U]) Slice0(count int) []Group[T, U] {
 	gb.size = count
 
 	for c := range gb.C {
-		gb.insert(gb.Group(c), c)
+		gb.insert(gb.Kind(c), c)
 	}
 
 	return gb.data
 }
 
-func (gb *GroupBuffer[T, U]) Slice(skip, limit int) []Group[T, U] {
+func (gb *GroupBy[T, U]) Slice(skip, limit int) []Group[T, U] {
 	return gb.Slice0(skip + limit)[skip:]
 }
 
-type Group[T any, U constraints.Ordered] struct {
+type Group[T any, U any] struct {
 	Group    U
 	Elements []T
 }
 
-func (gb *GroupBuffer[T, U]) insert(group U, data T) {
+func (gb *GroupBy[T, U]) insert(group U, data T) {
+	if gb.Equal == nil {
+		gb.Equal = func(a, b U) bool {
+			return gb.Less(a, b) == gb.Less(b, a)
+		}
+	}
+
 	// if we already have it in the group, insert into it
 	for i, g := range gb.data {
-		if g.Group == group {
+		if gb.Equal(g.Group, group) {
 			gb.data[i].Elements = append(gb.data[i].Elements, data)
 			return
 		}
